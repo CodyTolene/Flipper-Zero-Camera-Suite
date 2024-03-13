@@ -16,9 +16,40 @@
 #include "views/camera_suite_view_guide.h"
 #include "views/camera_suite_view_start.h"
 #include "views/camera_suite_view_camera.h"
+#include "views/camera_suite_view_wifi_camera.h"
 #include "helpers/camera_suite_storage.h"
 
 #define TAG "Camera Suite"
+
+#ifdef FW_ORIGIN_Xtreme
+/**
+ * Enable the following line for "Xtreme Firmware" & "Xtreme Apps" (Flipper-XFW).
+ * 
+ * @see https://github.com/Flipper-XFW/Xtreme-Firmware
+ * @see https://github.com/Flipper-XFW/Xtreme-Apps
+*/
+#include <xtreme/xtreme.h>
+#define UART_CH (xtreme_settings.uart_esp_channel)
+#elif defined FW_ORIGIN_Momentum
+/**
+ * Enable the following line for "Momentum Firmware" & "Momentum Apps".
+ * 
+ * @see https://github.com/Next-Flip/Momentum-Firmware
+ * @see https://github.com/Next-Flip/Momentum-Apps
+*/
+#include <momentum/momentum.h>
+#define UART_CH (momentum_settings.uart_esp_channel)
+#elif defined FW_ORIGIN_RM
+/**
+ * Enable the following line for "RogueMaster Firmware".
+ * 
+ * @see https://github.com/RogueMaster/flipperzero-firmware-wPlugins
+*/
+#include <cfw/cfw.h>
+#define UART_CH (cfw_settings.uart_esp_channel)
+#else
+#define UART_CH (FuriHalSerialIdUsart)
+#endif
 
 typedef struct {
     Gui* gui;
@@ -29,6 +60,7 @@ typedef struct {
     VariableItemList* variable_item_list;
     CameraSuiteViewStart* camera_suite_view_start;
     CameraSuiteViewCamera* camera_suite_view_camera;
+    CameraSuiteViewWiFiCamera* camera_suite_view_wifi_camera;
     CameraSuiteViewGuide* camera_suite_view_guide;
     uint32_t orientation;
     uint32_t dither;
@@ -44,6 +76,7 @@ typedef enum {
     CameraSuiteViewIdStartscreen,
     CameraSuiteViewIdMenu,
     CameraSuiteViewIdCamera,
+    CameraSuiteViewIdWiFiCamera,
     CameraSuiteViewIdGuide,
     CameraSuiteViewIdAppSettings,
     CameraSuiteViewIdCamSettings,
