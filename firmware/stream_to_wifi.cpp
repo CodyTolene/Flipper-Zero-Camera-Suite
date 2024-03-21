@@ -1,77 +1,66 @@
 #include "stream_to_wifi.h"
 
-const char *ssid = "ESP";
-const char *password = "test123";
-bool is_wifi_streaming = false;
+AsyncWebServer server(80);
+DNSServer dnsServer;
 
+char ssid[30] = "ESP"; // Default SSID
+char password[30] = "12345678"; // Default Password
+char index_html[MAX_HTML_SIZE] = "<html><body><h1>Camera Stream</h1><img src='stream'></body></html>";
+
+bool is_wifi_streaming_initialized = false;
+
+// Called from the main loop of the Firmware: `~firmware.ino`.
 void stream_to_wifi() {
-  if (!is_wifi_streaming) {
+  if (!is_wifi_streaming_initialized) {
+    is_wifi_streaming_initialized = true;
+
     WiFi.mode(WIFI_AP);
     WiFi.softAP(ssid, password);
-    WiFi.setSleep(false);
-
-    while (WiFi.status() != WL_CONNECTED) {
-      delay(500);
-      Serial.print(".");
-    }
-
-    Serial.println("WiFi connected");
-
-    start_server();
-
-    Serial.print("Camera Ready! Use 'http://");
-    Serial.print(WiFi.softAPIP());
-    Serial.println("' to connect");
-
-    Serial.flush();
     
-    is_wifi_streaming = true;
-  }
-}
+    Serial.print("AP SSID: ");
+    Serial.println(ssid);
 
-// Todo
-void start_server() {
-  // server.on("/", HTTP_GET, []() {
-  //   if (!camera_model.isStreamToWiFiEnabled) {
-  //     start_wifi_stream();
-  //   }
-  //   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-  //   server.sendHeader("Pragma", "no-cache");
-  //   server.sendHeader("Expires", "-1");
-  //   server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-  //   server.send(200, "text/html", "");
-  //   server.sendContent("<html><head></head><body>");
-  //   server.sendContent("<img src='stream' style='width: 100%; height: auto;' />");
-  //   server.sendContent("</body></html>");
-  // });
-  // server.on("/stream", HTTP_GET, []() {
-  //   if (!camera_model.isStreamToWiFiEnabled) {
-  //     start_wifi_stream();
-  //   }
-  //   String boundary = "ESP32CAM";
-  //   String header = "--" + boundary + "\r\nContent-Type: image/jpeg\r\nContent-Length: ";
-  //   String jpeg = dither_image();
-  //   String response = header + jpeg.length() + "\r\n\r\n" + jpeg + "\r\n";
-  //   server.send(200, "multipart/x-mixed-replace; boundary=" + boundary, response);
-  // });
-  // server.begin();
+    dnsServer.start(53, "*", WiFi.softAPIP());
+    server.begin();
+
+    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+      request->send(200, "text/html", index_html);
+    });
+
+    server.on("/stream", HTTP_GET, [](AsyncWebServerRequest *request){
+      // Camera stream handling should be implemented here
+      // Placeholder for camera stream response
+      request->send(200, "text/plain", "This is where the camera stream should be.");
+    });
+  } else {
+    dnsServer.processNextRequest();
+  }
 }
 
 void start_wifi_stream() {
-  turn_flash_on(); // Physical test indicator that we're streaming.
+  // Make sure the camera is not streaming to serial.
   camera_model.isStreamToSerialEnabled = false;
+
   set_camera_config_defaults(CAMERA_FUNCTION_WIFI);
   set_camera_model_defaults(CAMERA_FUNCTION_WIFI);
   set_camera_defaults(CAMERA_FUNCTION_WIFI);
+
   // @todo - Dynamically set ssid and password via prompts.
+
+  // Enable WiFi streaming.
   camera_model.isStreamToWiFiEnabled = true;
-  turn_flash_off();
+
+  // Turn the flash on momentarily to ensure the wifi started.
+  // @todo - Remove after testing.
+  turn_flash_on();
 }
 
 void stop_wifi_stream() {
-  if (is_wifi_streaming) {
-    WiFi.softAPdisconnect(true);
-    camera_model.isStreamToWiFiEnabled = false;
-    is_wifi_streaming = false;
-  }
+  WiFi.softAPdisconnect(true);
+  camera_model.isStreamToWiFiEnabled = false;
+  is_wifi_streaming_initialized = false;
+
+  // Turn the flash off after the wifi has started.
+  // @todo - Remove after testing.
+  turn_flash_off();
 }
