@@ -28,3 +28,9 @@ jobs:
           app-dir: ./fap
           skip-setup: true
           task: lint
+
+      - name: "Create FAP Download (pre-dev)"
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ github.event.repository.name }}-pre-dev-${{ steps.build-app.outputs.suffix }}.zip
+          path: ${{ steps.build-app.outputs.fap-artifacts }}
