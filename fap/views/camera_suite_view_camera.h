@@ -16,7 +16,6 @@ static const unsigned char bitmap_header[BITMAP_HEADER_LENGTH] = {
     0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x00};
 
-// Forward declaration
 typedef void (*CameraSuiteViewCameraCallback)(CameraSuiteCustomEvent event, void* context);
 
 typedef struct CameraSuiteViewCamera {
@@ -29,17 +28,16 @@ typedef struct CameraSuiteViewCamera {
     void* context;
 } CameraSuiteViewCamera;
 
-typedef struct UartDumpModel {
+typedef struct CameraSuiteViewCameraModel {
     bool is_dithering_enabled;
     bool is_initialized;
     bool is_inverted;
-    int rotation_angle;
     uint32_t orientation;
     uint8_t pixels[FRAME_BUFFER_LENGTH];
     uint8_t ringbuffer_index;
     uint8_t row_identifier;
     uint8_t row_ringbuffer[RING_BUFFER_LENGTH];
-} UartDumpModel;
+} CameraSuiteViewCameraModel;
 
 // Function Prototypes
 CameraSuiteViewCamera* camera_suite_view_camera_alloc();

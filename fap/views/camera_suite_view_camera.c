@@ -37,7 +37,7 @@ static void camera_suite_view_camera_draw(Canvas* canvas, void* model) {
     furi_assert(canvas);
     furi_assert(model);
 
-    UartDumpModel* uartDumpModel = model;
+    CameraSuiteViewCameraModel* cameraSuiteViewCameraModel = model;
 
     // Clear the screen.
     canvas_set_color(canvas, ColorBlack);
@@ -50,14 +50,15 @@ static void camera_suite_view_camera_draw(Canvas* canvas, void* model) {
         uint8_t y = p / ROW_BUFFER_LENGTH; // 0 .. 63
 
         for(uint8_t i = 0; i < 8; ++i) {
-            if((uartDumpModel->pixels[p] & (1 << (7 - i))) != 0) {
-                draw_pixel_by_orientation(canvas, (x * 8) + i, y, uartDumpModel->orientation);
+            if((cameraSuiteViewCameraModel->pixels[p] & (1 << (7 - i))) != 0) {
+                draw_pixel_by_orientation(
+                    canvas, (x * 8) + i, y, cameraSuiteViewCameraModel->orientation);
             }
         }
     }
 
     // Draw the pinout guide if the camera is not initialized.
-    if(!uartDumpModel->is_initialized) {
+    if(!cameraSuiteViewCameraModel->is_initialized) {
         // Clear the screen.
         canvas_clear(canvas);
 
@@ -156,7 +157,7 @@ static void camera_suite_view_camera_draw(Canvas* canvas, void* model) {
 static void save_image_to_flipper_sd_card(void* model) {
     furi_assert(model);
 
-    UartDumpModel* uartDumpModel = model;
+    CameraSuiteViewCameraModel* cameraSuiteViewCameraModel = model;
 
     // This pointer is used to access the storage.
     Storage* storage = furi_record_open(RECORD_STORAGE);
@@ -199,9 +200,9 @@ static void save_image_to_flipper_sd_card(void* model) {
     // Free the file name after use.
     furi_string_free(file_name);
 
-    if(!uartDumpModel->is_inverted) {
+    if(!cameraSuiteViewCameraModel->is_inverted) {
         for(size_t i = 0; i < FRAME_BUFFER_LENGTH; ++i) {
-            uartDumpModel->pixels[i] = ~uartDumpModel->pixels[i];
+            cameraSuiteViewCameraModel->pixels[i] = ~cameraSuiteViewCameraModel->pixels[i];
         }
     }
 
@@ -220,7 +221,8 @@ static void save_image_to_flipper_sd_card(void* model) {
         // @todo - Save image based on orientation.
         for(size_t i = 64; i > 0; --i) {
             for(size_t j = 0; j < ROW_BUFFER_LENGTH; ++j) {
-                row_buffer[j] = uartDumpModel->pixels[((i - 1) * ROW_BUFFER_LENGTH) + j];
+                row_buffer[j] =
+                    cameraSuiteViewCameraModel->pixels[((i - 1) * ROW_BUFFER_LENGTH) + j];
             }
             storage_file_write(file, row_buffer, ROW_BUFFER_LENGTH);
         }
@@ -233,11 +235,13 @@ static void save_image_to_flipper_sd_card(void* model) {
     storage_file_free(file);
 }
 
-static void
-    camera_suite_view_camera_model_init(UartDumpModel* const model, CameraSuite* instance_context) {
+static void camera_suite_view_camera_model_init(
+    CameraSuiteViewCameraModel* const model,
+    CameraSuite* instance_context) {
     furi_assert(model);
     furi_assert(instance_context);
 
+    model->is_initialized = false;
     model->is_dithering_enabled = true;
     model->is_inverted = false;
     uint32_t orientation = instance_context->orientation;
@@ -259,7 +263,7 @@ static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
         default: // Stop all sounds, reset the LED.
             with_view_model(
                 instance->view,
-                UartDumpModel * model,
+                CameraSuiteViewCameraModel * model,
                 {
                     UNUSED(model);
                     // Stop all sounds, reset the LED.
@@ -275,7 +279,7 @@ static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
         case InputKeyBack: {
             with_view_model(
                 instance->view,
-                UartDumpModel * model,
+                CameraSuiteViewCameraModel * model,
                 {
                     UNUSED(model);
 
@@ -292,7 +296,7 @@ static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
         case InputKeyLeft: {
             with_view_model(
                 instance->view,
-                UartDumpModel * model,
+                CameraSuiteViewCameraModel * model,
                 {
                     // Play sound.
                     camera_suite_play_happy_bump(instance->context);
@@ -321,7 +325,7 @@ static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
         case InputKeyRight: {
             with_view_model(
                 instance->view,
-                UartDumpModel * model,
+                CameraSuiteViewCameraModel * model,
                 {
                     // Play sound.
                     camera_suite_play_happy_bump(instance->context);
@@ -350,7 +354,7 @@ static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
         case InputKeyUp: {
             with_view_model(
                 instance->view,
-                UartDumpModel * model,
+                CameraSuiteViewCameraModel * model,
                 {
                     UNUSED(model);
 
@@ -371,7 +375,7 @@ static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
         case InputKeyDown: {
             with_view_model(
                 instance->view,
-                UartDumpModel * model,
+                CameraSuiteViewCameraModel * model,
                 {
                     UNUSED(model);
 
@@ -392,7 +396,7 @@ static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
         case InputKeyOk: {
             with_view_model(
                 instance->view,
-                UartDumpModel * model,
+                CameraSuiteViewCameraModel * model,
                 {
                     // Play sound.
                     camera_suite_play_long_bump(instance->context);
@@ -454,7 +458,7 @@ static void camera_suite_view_camera_enter(void* context) {
 
     with_view_model(
         instance->view,
-        UartDumpModel * model,
+        CameraSuiteViewCameraModel * model,
         { camera_suite_view_camera_model_init(model, instance_context); },
         true);
 }
@@ -474,7 +478,7 @@ static void
     }
 }
 
-static void process_ringbuffer(UartDumpModel* model, uint8_t const byte) {
+static void process_ringbuffer(CameraSuiteViewCameraModel* model, uint8_t const byte) {
     furi_assert(model);
     furi_assert(byte);
 
@@ -552,7 +556,7 @@ static int32_t camera_suite_camera_worker(void* context) {
                 if(length > 0) {
                     with_view_model(
                         instance->view,
-                        UartDumpModel * model,
+                        CameraSuiteViewCameraModel * model,
                         {
                             // Process the data.
                             for(size_t i = 0; i < length; i++) {
@@ -564,7 +568,7 @@ static int32_t camera_suite_camera_worker(void* context) {
             } while(length > 0);
 
             with_view_model(
-                instance->view, UartDumpModel * model, { UNUSED(model); }, true);
+                instance->view, CameraSuiteViewCameraModel * model, { UNUSED(model); }, true);
         }
     }
 
@@ -582,7 +586,7 @@ CameraSuiteViewCamera* camera_suite_view_camera_alloc() {
     instance->camera_rx_stream = furi_stream_buffer_alloc(2048, 1);
 
     // Allocate model
-    view_allocate_model(instance->view, ViewModelTypeLocking, sizeof(UartDumpModel));
+    view_allocate_model(instance->view, ViewModelTypeLocking, sizeof(CameraSuiteViewCameraModel));
 
     // Set context for the view (furi_assert crashes in events without this)
     view_set_context(instance->view, instance);
@@ -633,7 +637,7 @@ void camera_suite_view_camera_free(CameraSuiteViewCamera* instance) {
     furi_hal_serial_control_release(instance->camera_serial_handle);
 
     with_view_model(
-        instance->view, UartDumpModel * model, { UNUSED(model); }, true);
+        instance->view, CameraSuiteViewCameraModel * model, { UNUSED(model); }, true);
     view_free(instance->view);
     free(instance);
 }
