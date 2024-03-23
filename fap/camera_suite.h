@@ -1,5 +1,6 @@
 #pragma once
 
+#include <expansion/expansion.h>
 #include <furi.h>
 #include <furi_hal.h>
 #include <gui/gui.h>
@@ -81,6 +82,14 @@ typedef enum {
     CameraSuiteViewIdAppSettings,
     CameraSuiteViewIdCamSettings,
 } CameraSuiteViewId;
+
+typedef enum {
+    WorkerEventReserved = (1 << 0), // Reserved for StreamBuffer internal event
+    WorkerEventStop = (1 << 1),
+    WorkerEventRx = (1 << 2),
+} WorkerEventFlags;
+
+#define CAMERA_WORKER_EVENTS_MASK (WorkerEventStop | WorkerEventRx)
 
 typedef enum {
     CameraSuiteOrientation0,

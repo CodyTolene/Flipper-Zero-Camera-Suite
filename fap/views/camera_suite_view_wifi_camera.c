@@ -1,9 +1,6 @@
 #include "../camera_suite.h"
-#include <furi.h>
-#include <furi_hal.h>
-#include <input/input.h>
-#include <gui/elements.h>
-#include <dolphin/dolphin.h>
+#include "camera_suite_view_wifi_camera.h"
+
 #include "../helpers/camera_suite_haptic.h"
 #include "../helpers/camera_suite_speaker.h"
 #include "../helpers/camera_suite_led.h"

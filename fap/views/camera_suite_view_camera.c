@@ -1,12 +1,10 @@
+
 #include "../camera_suite.h"
-#include <furi.h>
-#include <furi_hal.h>
-#include <input/input.h>
-#include <gui/elements.h>
-#include <dolphin/dolphin.h>
+#include "camera_suite_view_camera.h"
+
 #include "../helpers/camera_suite_haptic.h"
-#include "../helpers/camera_suite_speaker.h"
 #include "../helpers/camera_suite_led.h"
+#include "../helpers/camera_suite_speaker.h"
 
 static void draw_pixel_by_orientation(Canvas* canvas, uint8_t x, uint8_t y, uint8_t orientation) {
     furi_assert(canvas);
@@ -21,7 +19,6 @@ static void draw_pixel_by_orientation(Canvas* canvas, uint8_t x, uint8_t y, uint
         break;
     }
     case 1: { // Camera rotated 90 degrees
-
         canvas_draw_dot(canvas, y, FRAME_WIDTH - 1 - x);
         break;
     }

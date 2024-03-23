@@ -1,6 +1,4 @@
 #include "camera_suite.h"
-#include <stdlib.h>
-#include <expansion/expansion.h>
 
 bool camera_suite_custom_event_callback(void* context, uint32_t event) {
     furi_assert(context);
