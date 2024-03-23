@@ -5,16 +5,6 @@
 #include "../helpers/camera_suite_speaker.h"
 #include "../helpers/camera_suite_led.h"
 
-void camera_suite_view_wifi_camera_set_callback(
-    CameraSuiteViewWiFiCamera* instance,
-    CameraSuiteViewWiFiCameraCallback callback,
-    void* context) {
-    furi_assert(instance);
-    furi_assert(callback);
-    instance->callback = callback;
-    instance->context = context;
-}
-
 static void camera_suite_view_wifi_camera_draw(Canvas* canvas, void* model) {
     furi_assert(canvas);
     furi_assert(model);
@@ -31,6 +21,32 @@ static void camera_suite_view_wifi_camera_draw(Canvas* canvas, void* model) {
     // Draw log from camera.
     canvas_draw_str_aligned(
         canvas, 3, 13, AlignLeft, AlignTop, furi_string_get_cstr(instance->log));
+}
+
+static void camera_suite_view_wifi_camera_model_init(CameraSuiteViewWiFiCameraModel* const model) {
+    model->log = furi_string_alloc();
+    furi_string_reserve(model->log, 4096);
+}
+
+static void camera_suite_view_wifi_camera_enter(void* context) {
+    furi_assert(context);
+
+    // Get the camera suite instance context.
+    CameraSuiteViewWiFiCamera* instance = (CameraSuiteViewWiFiCamera*)context;
+
+    // @TODO Start wifi camera stream.
+    // furi_hal_serial_tx(instance->wifi_serial_handle, (uint8_t[]){'W'}, 1);
+    // furi_delay_ms(50);
+
+    with_view_model(
+        instance->view,
+        CameraSuiteViewWiFiCameraModel * model,
+        { camera_suite_view_wifi_camera_model_init(model); },
+        true);
+}
+
+static void camera_suite_view_wifi_camera_exit(void* context) {
+    furi_assert(context);
 }
 
 static bool camera_suite_view_wifi_camera_input(InputEvent* event, void* context) {
@@ -89,31 +105,7 @@ static bool camera_suite_view_wifi_camera_input(InputEvent* event, void* context
     return false;
 }
 
-static void camera_suite_view_wifi_camera_exit(void* context) {
-    furi_assert(context);
-}
-
-static void camera_suite_view_wifi_camera_model_init(CameraSuiteViewWiFiCameraModel* const model) {
-    model->log = furi_string_alloc();
-    furi_string_reserve(model->log, 4096);
-}
-
-static void camera_suite_view_wifi_camera_enter(void* context) {
-    furi_assert(context);
-
-    // Get the camera suite instance context.
-    CameraSuiteViewWiFiCamera* instance = (CameraSuiteViewWiFiCamera*)context;
-
-    // @TODO Start wifi camera stream.
-    // furi_hal_serial_tx(instance->wifi_serial_handle, (uint8_t[]){'W'}, 1);
-    // furi_delay_ms(50);
-
-    with_view_model(
-        instance->view,
-        CameraSuiteViewWiFiCameraModel * model,
-        { camera_suite_view_wifi_camera_model_init(model); },
-        true);
-}
+// ------------------------------------------------------------ //
 
 CameraSuiteViewWiFiCamera* camera_suite_view_wifi_camera_alloc() {
     // Allocate memory for the instance
@@ -150,6 +142,11 @@ CameraSuiteViewWiFiCamera* camera_suite_view_wifi_camera_alloc() {
     return instance;
 }
 
+View* camera_suite_view_wifi_camera_get_view(CameraSuiteViewWiFiCamera* instance) {
+    furi_assert(instance);
+    return instance->view;
+}
+
 void camera_suite_view_wifi_camera_free(CameraSuiteViewWiFiCamera* instance) {
     furi_assert(instance);
 
@@ -162,7 +159,12 @@ void camera_suite_view_wifi_camera_free(CameraSuiteViewWiFiCamera* instance) {
     free(instance);
 }
 
-View* camera_suite_view_wifi_camera_get_view(CameraSuiteViewWiFiCamera* instance) {
+void camera_suite_view_wifi_camera_set_callback(
+    CameraSuiteViewWiFiCamera* instance,
+    CameraSuiteViewWiFiCameraCallback callback,
+    void* context) {
     furi_assert(instance);
-    return instance->view;
+    furi_assert(callback);
+    instance->callback = callback;
+    instance->context = context;
 }

@@ -6,7 +6,11 @@
 #include "../helpers/camera_suite_led.h"
 #include "../helpers/camera_suite_speaker.h"
 
-static void draw_pixel_by_orientation(Canvas* canvas, uint8_t x, uint8_t y, uint8_t orientation) {
+static void camera_suite_view_camera_draw_pixel_by_orientation(
+    Canvas* canvas,
+    uint8_t x,
+    uint8_t y,
+    uint8_t orientation) {
     furi_assert(canvas);
     furi_assert(x);
     furi_assert(y);
@@ -51,7 +55,7 @@ static void camera_suite_view_camera_draw(Canvas* canvas, void* model) {
 
         for(uint8_t i = 0; i < 8; ++i) {
             if((cameraSuiteViewCameraModel->pixels[p] & (1 << (7 - i))) != 0) {
-                draw_pixel_by_orientation(
+                camera_suite_view_camera_draw_pixel_by_orientation(
                     canvas, (x * 8) + i, y, cameraSuiteViewCameraModel->orientation);
             }
         }
@@ -154,7 +158,63 @@ static void camera_suite_view_camera_draw(Canvas* canvas, void* model) {
     }
 }
 
-static void save_image_to_flipper_sd_card(void* model) {
+static void camera_suite_view_camera_model_init(
+    CameraSuiteViewCameraModel* const model,
+    CameraSuite* instance_context) {
+    furi_assert(model);
+    furi_assert(instance_context);
+
+    model->is_initialized = false;
+    model->is_dithering_enabled = true;
+    model->is_inverted = false;
+    uint32_t orientation = instance_context->orientation;
+    model->orientation = orientation;
+
+    for(size_t i = 0; i < FRAME_BUFFER_LENGTH; i++) {
+        model->pixels[i] = 0;
+    }
+}
+
+static void camera_suite_view_camera_enter(void* context) {
+    furi_assert(context);
+
+    // Get the camera suite instance context.
+    CameraSuiteViewCamera* instance = (CameraSuiteViewCamera*)context;
+
+    // Get the camera suite instance context.
+    CameraSuite* instance_context = instance->context;
+
+    // Start camera stream.
+    furi_hal_serial_tx(instance->camera_serial_handle, (uint8_t[]){'S'}, 1);
+    furi_delay_ms(50);
+
+    // Get/set dither type.
+    uint8_t dither_type = instance_context->dither;
+    furi_hal_serial_tx(instance->camera_serial_handle, &dither_type, 1);
+    furi_delay_ms(50);
+
+    // Make sure the camera is not inverted.
+    furi_hal_serial_tx(instance->camera_serial_handle, (uint8_t[]){'i'}, 1);
+    furi_delay_ms(50);
+
+    // Toggle flash on or off based on the current state. If the user has this
+    // on the flash will stay on the entire time the user is in the camera view.
+    uint8_t flash_state = instance_context->flash ? 'F' : 'f';
+    furi_hal_serial_tx(instance->camera_serial_handle, &flash_state, 1);
+    furi_delay_ms(50);
+
+    with_view_model(
+        instance->view,
+        CameraSuiteViewCameraModel * model,
+        { camera_suite_view_camera_model_init(model, instance_context); },
+        true);
+}
+
+static void camera_suite_view_camera_exit(void* context) {
+    furi_assert(context);
+}
+
+static void camera_suite_view_camera_save_image_to_flipper_sd_card(void* model) {
     furi_assert(model);
 
     CameraSuiteViewCameraModel* cameraSuiteViewCameraModel = model;
@@ -233,23 +293,6 @@ static void save_image_to_flipper_sd_card(void* model) {
 
     // Free up memory.
     storage_file_free(file);
-}
-
-static void camera_suite_view_camera_model_init(
-    CameraSuiteViewCameraModel* const model,
-    CameraSuite* instance_context) {
-    furi_assert(model);
-    furi_assert(instance_context);
-
-    model->is_initialized = false;
-    model->is_dithering_enabled = true;
-    model->is_inverted = false;
-    uint32_t orientation = instance_context->orientation;
-    model->orientation = orientation;
-
-    for(size_t i = 0; i < FRAME_BUFFER_LENGTH; i++) {
-        model->pixels[i] = 0;
-    }
 }
 
 static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
@@ -407,7 +450,7 @@ static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
                     // furi_hal_serial_tx(instance->camera_serial_handle, (uint8_t[]){'P'}, 1);
 
                     // Save currently displayed image to the Flipper Zero SD card.
-                    save_image_to_flipper_sd_card(model);
+                    camera_suite_view_camera_save_image_to_flipper_sd_card(model);
 
                     instance->callback(CameraSuiteCustomEventSceneCameraOk, instance->context);
                 },
@@ -424,47 +467,10 @@ static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
     return false;
 }
 
-static void camera_suite_view_camera_exit(void* context) {
-    furi_assert(context);
-}
-
-static void camera_suite_view_camera_enter(void* context) {
-    furi_assert(context);
-
-    // Get the camera suite instance context.
-    CameraSuiteViewCamera* instance = (CameraSuiteViewCamera*)context;
-
-    // Get the camera suite instance context.
-    CameraSuite* instance_context = instance->context;
-
-    // Start camera stream.
-    furi_hal_serial_tx(instance->camera_serial_handle, (uint8_t[]){'S'}, 1);
-    furi_delay_ms(50);
-
-    // Get/set dither type.
-    uint8_t dither_type = instance_context->dither;
-    furi_hal_serial_tx(instance->camera_serial_handle, &dither_type, 1);
-    furi_delay_ms(50);
-
-    // Make sure the camera is not inverted.
-    furi_hal_serial_tx(instance->camera_serial_handle, (uint8_t[]){'i'}, 1);
-    furi_delay_ms(50);
-
-    // Toggle flash on or off based on the current state. If the user has this
-    // on the flash will stay on the entire time the user is in the camera view.
-    uint8_t flash_state = instance_context->flash ? 'F' : 'f';
-    furi_hal_serial_tx(instance->camera_serial_handle, &flash_state, 1);
-    furi_delay_ms(50);
-
-    with_view_model(
-        instance->view,
-        CameraSuiteViewCameraModel * model,
-        { camera_suite_view_camera_model_init(model, instance_context); },
-        true);
-}
-
-static void
-    camera_on_irq_cb(FuriHalSerialHandle* handle, FuriHalSerialRxEvent event, void* context) {
+static void camera_suite_view_camera_on_irq_cb(
+    FuriHalSerialHandle* handle,
+    FuriHalSerialRxEvent event,
+    void* context) {
     furi_assert(handle);
     furi_assert(context);
 
@@ -478,7 +484,9 @@ static void
     }
 }
 
-static void process_ringbuffer(CameraSuiteViewCameraModel* model, uint8_t const byte) {
+static void camera_suite_view_camera_process_ringbuffer(
+    CameraSuiteViewCameraModel* model,
+    uint8_t const byte) {
     furi_assert(model);
     furi_assert(byte);
 
@@ -526,7 +534,7 @@ static void process_ringbuffer(CameraSuiteViewCameraModel* model, uint8_t const 
     }
 }
 
-static int32_t camera_suite_camera_worker(void* context) {
+static int32_t camera_suite_view_camera_worker(void* context) {
     furi_assert(context);
 
     CameraSuiteViewCamera* instance = context;
@@ -560,7 +568,7 @@ static int32_t camera_suite_camera_worker(void* context) {
                         {
                             // Process the data.
                             for(size_t i = 0; i < length; i++) {
-                                process_ringbuffer(model, data[i]);
+                                camera_suite_view_camera_process_ringbuffer(model, data[i]);
                             }
                         },
                         false);
@@ -574,6 +582,8 @@ static int32_t camera_suite_camera_worker(void* context) {
 
     return 0;
 }
+
+// ------------------------------------------------------------ //
 
 CameraSuiteViewCamera* camera_suite_view_camera_alloc() {
     // Allocate memory for the instance
@@ -605,7 +615,7 @@ CameraSuiteViewCamera* camera_suite_view_camera_alloc() {
 
     // Allocate a thread for this camera to run on.
     FuriThread* thread = furi_thread_alloc_ex(
-        "Camera_Suite_Camera_Rx_Thread", 2048, camera_suite_camera_worker, instance);
+        "Camera_Suite_Camera_Rx_Thread", 2048, camera_suite_view_camera_worker, instance);
     instance->camera_worker_thread = thread;
     furi_thread_start(instance->camera_worker_thread);
 
@@ -616,9 +626,14 @@ CameraSuiteViewCamera* camera_suite_view_camera_alloc() {
 
     // Start the asynchronous receive.
     furi_hal_serial_async_rx_start(
-        instance->camera_serial_handle, camera_on_irq_cb, instance, false);
+        instance->camera_serial_handle, camera_suite_view_camera_on_irq_cb, instance, false);
 
     return instance;
+}
+
+View* camera_suite_view_camera_get_view(CameraSuiteViewCamera* instance) {
+    furi_assert(instance);
+    return instance->view;
 }
 
 void camera_suite_view_camera_free(CameraSuiteViewCamera* instance) {
@@ -640,11 +655,6 @@ void camera_suite_view_camera_free(CameraSuiteViewCamera* instance) {
         instance->view, CameraSuiteViewCameraModel * model, { UNUSED(model); }, true);
     view_free(instance->view);
     free(instance);
-}
-
-View* camera_suite_view_camera_get_view(CameraSuiteViewCamera* instance) {
-    furi_assert(instance);
-    return instance->view;
 }
 
 void camera_suite_view_camera_set_callback(

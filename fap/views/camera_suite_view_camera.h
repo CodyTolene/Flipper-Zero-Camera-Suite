@@ -39,11 +39,10 @@ typedef struct CameraSuiteViewCameraModel {
     uint8_t row_ringbuffer[RING_BUFFER_LENGTH];
 } CameraSuiteViewCameraModel;
 
-// Function Prototypes
 CameraSuiteViewCamera* camera_suite_view_camera_alloc();
-View* camera_suite_view_camera_get_view(CameraSuiteViewCamera* camera_suite_static);
-void camera_suite_view_camera_free(CameraSuiteViewCamera* camera_suite_static);
+View* camera_suite_view_camera_get_view(CameraSuiteViewCamera* instance);
+void camera_suite_view_camera_free(CameraSuiteViewCamera* instance);
 void camera_suite_view_camera_set_callback(
-    CameraSuiteViewCamera* camera_suite_view_camera,
+    CameraSuiteViewCamera* instance,
     CameraSuiteViewCameraCallback callback,
     void* context);

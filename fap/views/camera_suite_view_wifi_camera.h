@@ -17,9 +17,9 @@ typedef struct CameraSuiteViewWiFiCameraModel {
 } CameraSuiteViewWiFiCameraModel;
 
 CameraSuiteViewWiFiCamera* camera_suite_view_wifi_camera_alloc();
-View* camera_suite_view_wifi_camera_get_view(CameraSuiteViewWiFiCamera* camera_suite_static);
-void camera_suite_view_wifi_camera_free(CameraSuiteViewWiFiCamera* camera_suite_static);
+View* camera_suite_view_wifi_camera_get_view(CameraSuiteViewWiFiCamera* instance);
+void camera_suite_view_wifi_camera_free(CameraSuiteViewWiFiCamera* instance);
 void camera_suite_view_wifi_camera_set_callback(
-    CameraSuiteViewWiFiCamera* camera_suite_view_wifi_camera,
+    CameraSuiteViewWiFiCamera* instance,
     CameraSuiteViewWiFiCameraCallback callback,
     void* context);
