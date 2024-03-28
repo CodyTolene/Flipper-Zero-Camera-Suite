@@ -84,8 +84,11 @@ typedef enum {
 } CameraSuiteViewId;
 
 typedef enum {
-    WorkerEventReserved = (1 << 0), // Reserved for StreamBuffer internal event
+    // Reserved for StreamBuffer internal event
+    WorkerEventReserved = (1 << 0),
+    // Stop worker thread
     WorkerEventStop = (1 << 1),
+    // Rx event
     WorkerEventRx = (1 << 2),
 } WorkerEventFlags;
 

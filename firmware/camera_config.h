@@ -1,6 +1,7 @@
 #ifndef CAMERA_CONFIG_H
 #define CAMERA_CONFIG_H
 
+#include <esp32-hal-psram.h>
 #include <esp_camera.h>
 
 #include "camera_model.h"

@@ -621,12 +621,22 @@ CameraSuiteViewCamera* camera_suite_view_camera_alloc() {
 
     // Allocate the serial handle for the camera.
     instance->camera_serial_handle = furi_hal_serial_control_acquire(UART_CH);
-    furi_check(instance->camera_serial_handle);
+    furi_assert(instance->camera_serial_handle);
     furi_hal_serial_init(instance->camera_serial_handle, 230400);
 
     // Start the asynchronous receive.
     furi_hal_serial_async_rx_start(
         instance->camera_serial_handle, camera_suite_view_camera_on_irq_cb, instance, false);
+
+    // Power cycle the camera off to start the firmware fresh.
+    furi_hal_power_disable_external_3_3v();
+    furi_hal_power_disable_otg();
+
+    furi_delay_ms(100);
+
+    // Power cycle the camera on.
+    furi_hal_power_enable_external_3_3v();
+    furi_hal_power_enable_otg();
 
     return instance;
 }
@@ -647,9 +657,15 @@ void camera_suite_view_camera_free(CameraSuiteViewCamera* instance) {
     // Free the allocated stream buffer.
     furi_stream_buffer_free(instance->camera_rx_stream);
 
+    furi_assert(instance->camera_serial_handle);
+
     // Deinitialize the serial handle and release the control.
     furi_hal_serial_deinit(instance->camera_serial_handle);
     furi_hal_serial_control_release(instance->camera_serial_handle);
+
+    instance->camera_serial_handle = NULL;
+    instance->camera_worker_thread = NULL;
+    instance->camera_rx_stream = NULL;
 
     with_view_model(
         instance->view, CameraSuiteViewCameraModel * model, { UNUSED(model); }, true);
