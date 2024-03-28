@@ -79,6 +79,7 @@ void camera_suite_read_settings(void* context) {
         camera_suite_close_storage();
         return;
     }
+
     uint32_t file_version;
     FuriString* temp_str = furi_string_alloc();
 
@@ -96,6 +97,7 @@ void camera_suite_read_settings(void* context) {
         furi_string_free(temp_str);
         return;
     }
+
     furi_string_free(temp_str);
 
     if(file_version < BOILERPLATE_SETTINGS_FILE_VERSION) {
