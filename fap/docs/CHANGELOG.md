@@ -9,6 +9,7 @@
 
 - Use new Flipper Zero "DateTime" type for image filenames as "YYYYMMDD-HHMMSS.bmp" (#52).
 - Fix pinout guide image in-app for "GND-GND" pin reference (#59). Thanks PyroJoe313!
+- Fix up horizontal flip when camera is rotated 180 degrees (#57). Thanks 4k3or3et!
 
 ## v1.7
 
@@ -51,7 +52,7 @@
 
 ## v1.2
 
-- Save image support. When the center button is pressed take a picture and save it to the "DCIM" folder at the root of your SD card. 
+- Save image support. When the center button is pressed take a picture and save it to the "DCIM" folder at the root of your SD card.
 - Image will be saved as a bitmap file with a timestamp as the filename ("YYYYMMDD-HHMMSS.bmp").
 - Camera flash support. Flashes the ESP32-CAM onboard LED when a picture is taken if enabled in the settings.
 - Move the camera dithering type to the settings scene as a new configurable option.

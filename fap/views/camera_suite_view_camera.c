@@ -26,7 +26,7 @@ static void draw_pixel_by_orientation(Canvas* canvas, uint8_t x, uint8_t y, uint
         break;
     }
     case 2: { // Camera rotated 180 degrees (upside down)
-        canvas_draw_dot(canvas, FRAME_WIDTH - 1 - x, FRAME_HEIGHT - 1 - y);
+        canvas_draw_dot(canvas, x, FRAME_HEIGHT - 1 - y);
         break;
     }
     case 3: { // Camera rotated 270 degrees
