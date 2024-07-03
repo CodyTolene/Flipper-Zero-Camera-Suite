@@ -1,5 +1,6 @@
 #include "stream_to_serial.h"
 
+// Called from the main loop of the Firmware: `~firmware.ino`.
 void stream_to_serial() {
   camera_fb_t *frame_buffer = esp_camera_fb_get();
 
@@ -59,9 +60,15 @@ void stream_to_serial() {
 }
 
 void start_serial_stream() {
-  set_camera_config_defaults();
-  set_camera_model_defaults();
-  set_camera_defaults();
+  // Make sure the camera is not streaming to WiFi.
+  camera_model.isStreamToWiFiEnabled = false;
+
+  // Set the camera configuration, model and defaults for serial streaming.
+  set_camera_config_defaults(CAMERA_FUNCTION_SERIAL);
+  set_camera_model_defaults(CAMERA_FUNCTION_SERIAL);
+  set_camera_defaults(CAMERA_FUNCTION_SERIAL);
+
+  // Enable serial streaming.
   camera_model.isStreamToSerialEnabled = true;
 }
 

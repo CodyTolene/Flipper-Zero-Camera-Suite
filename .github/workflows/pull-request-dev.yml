@@ -6,7 +6,19 @@ on:
 jobs:
   ufbt-test-build-action:
     runs-on: ubuntu-latest
-    name: "PR Build: dev"
+    strategy:
+      matrix:
+        include:
+          - name: "dev"
+            sdk-channel: dev
+
+          - name: "rc"
+            sdk-channel: rc
+
+          - name: "release"
+            sdk-channel: release
+
+    name: "PR Build: ${{ matrix.name }}"
     steps:
       - name: "Checkout"
         uses: actions/checkout@v3
@@ -20,7 +32,7 @@ jobs:
         id: build-app
         with:
           app-dir: ./fap
-          sdk-channel: dev
+          sdk-channel: ${{ matrix.sdk-channel }}
 
       - name: "Lint"
         uses: flipperdevices/flipperzero-ufbt-action@v0.1
@@ -28,3 +40,9 @@ jobs:
           app-dir: ./fap
           skip-setup: true
           task: lint
+
+      - name: "Create FAP Download Pre Release (${{ matrix.name }})"
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ github.event.repository.name }}-${{ matrix.name }}-${{ steps.build-app.outputs.suffix }}.zip
+          path: ${{ steps.build-app.outputs.fap-artifacts }}

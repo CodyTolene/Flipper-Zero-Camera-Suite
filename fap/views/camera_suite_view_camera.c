@@ -1,14 +1,16 @@
-#include "../camera_suite.h"
-#include <furi.h>
-#include <furi_hal.h>
-#include <input/input.h>
-#include <gui/elements.h>
-#include <dolphin/dolphin.h>
-#include "../helpers/camera_suite_haptic.h"
-#include "../helpers/camera_suite_speaker.h"
-#include "../helpers/camera_suite_led.h"
 
-static void draw_pixel_by_orientation(Canvas* canvas, uint8_t x, uint8_t y, uint8_t orientation) {
+#include "../camera_suite.h"
+#include "camera_suite_view_camera.h"
+
+#include "../helpers/camera_suite_haptic.h"
+#include "../helpers/camera_suite_led.h"
+#include "../helpers/camera_suite_speaker.h"
+
+static void camera_suite_view_camera_draw_pixel_by_orientation(
+    Canvas* canvas,
+    uint8_t x,
+    uint8_t y,
+    uint8_t orientation) {
     furi_assert(canvas);
     furi_assert(x);
     furi_assert(y);
@@ -21,7 +23,6 @@ static void draw_pixel_by_orientation(Canvas* canvas, uint8_t x, uint8_t y, uint
         break;
     }
     case 1: { // Camera rotated 90 degrees
-
         canvas_draw_dot(canvas, y, FRAME_WIDTH - 1 - x);
         break;
     }
@@ -40,7 +41,7 @@ static void camera_suite_view_camera_draw(Canvas* canvas, void* model) {
     furi_assert(canvas);
     furi_assert(model);
 
-    UartDumpModel* uartDumpModel = model;
+    CameraSuiteViewCameraModel* cameraSuiteViewCameraModel = model;
 
     // Clear the screen.
     canvas_set_color(canvas, ColorBlack);
@@ -53,14 +54,15 @@ static void camera_suite_view_camera_draw(Canvas* canvas, void* model) {
         uint8_t y = p / ROW_BUFFER_LENGTH; // 0 .. 63
 
         for(uint8_t i = 0; i < 8; ++i) {
-            if((uartDumpModel->pixels[p] & (1 << (7 - i))) != 0) {
-                draw_pixel_by_orientation(canvas, (x * 8) + i, y, uartDumpModel->orientation);
+            if((cameraSuiteViewCameraModel->pixels[p] & (1 << (7 - i))) != 0) {
+                camera_suite_view_camera_draw_pixel_by_orientation(
+                    canvas, (x * 8) + i, y, cameraSuiteViewCameraModel->orientation);
             }
         }
     }
 
     // Draw the pinout guide if the camera is not initialized.
-    if(!uartDumpModel->is_initialized) {
+    if(!cameraSuiteViewCameraModel->is_initialized) {
         // Clear the screen.
         canvas_clear(canvas);
 
@@ -148,10 +150,66 @@ static void camera_suite_view_camera_draw(Canvas* canvas, void* model) {
     }
 }
 
-static void save_image_to_flipper_sd_card(void* model) {
+static void camera_suite_view_camera_model_init(
+    CameraSuiteViewCameraModel* const model,
+    CameraSuite* instance_context) {
+    furi_assert(model);
+    furi_assert(instance_context);
+
+    model->is_initialized = false;
+    model->is_dithering_enabled = true;
+    model->is_inverted = false;
+    uint32_t orientation = instance_context->orientation;
+    model->orientation = orientation;
+
+    for(size_t i = 0; i < FRAME_BUFFER_LENGTH; i++) {
+        model->pixels[i] = 0;
+    }
+}
+
+static void camera_suite_view_camera_enter(void* context) {
+    furi_assert(context);
+
+    // Get the camera suite instance context.
+    CameraSuiteViewCamera* instance = (CameraSuiteViewCamera*)context;
+
+    // Get the camera suite instance context.
+    CameraSuite* instance_context = instance->context;
+
+    // Start camera stream.
+    furi_hal_serial_tx(instance->camera_serial_handle, (uint8_t[]){'S'}, 1);
+    furi_delay_ms(50);
+
+    // Get/set dither type.
+    uint8_t dither_type = instance_context->dither;
+    furi_hal_serial_tx(instance->camera_serial_handle, &dither_type, 1);
+    furi_delay_ms(50);
+
+    // Make sure the camera is not inverted.
+    furi_hal_serial_tx(instance->camera_serial_handle, (uint8_t[]){'i'}, 1);
+    furi_delay_ms(50);
+
+    // Toggle flash on or off based on the current state. If the user has this
+    // on the flash will stay on the entire time the user is in the camera view.
+    uint8_t flash_state = instance_context->flash ? 'F' : 'f';
+    furi_hal_serial_tx(instance->camera_serial_handle, &flash_state, 1);
+    furi_delay_ms(50);
+
+    with_view_model(
+        instance->view,
+        CameraSuiteViewCameraModel * model,
+        { camera_suite_view_camera_model_init(model, instance_context); },
+        true);
+}
+
+static void camera_suite_view_camera_exit(void* context) {
+    furi_assert(context);
+}
+
+static void camera_suite_view_camera_save_image_to_flipper_sd_card(void* model) {
     furi_assert(model);
 
-    UartDumpModel* uartDumpModel = model;
+    CameraSuiteViewCameraModel* cameraSuiteViewCameraModel = model;
 
     // This pointer is used to access the storage.
     Storage* storage = furi_record_open(RECORD_STORAGE);
@@ -194,9 +252,9 @@ static void save_image_to_flipper_sd_card(void* model) {
     // Free the file name after use.
     furi_string_free(file_name);
 
-    if(!uartDumpModel->is_inverted) {
+    if(!cameraSuiteViewCameraModel->is_inverted) {
         for(size_t i = 0; i < FRAME_BUFFER_LENGTH; ++i) {
-            uartDumpModel->pixels[i] = ~uartDumpModel->pixels[i];
+            cameraSuiteViewCameraModel->pixels[i] = ~cameraSuiteViewCameraModel->pixels[i];
         }
     }
 
@@ -215,7 +273,8 @@ static void save_image_to_flipper_sd_card(void* model) {
         // @todo - Save image based on orientation.
         for(size_t i = 64; i > 0; --i) {
             for(size_t j = 0; j < ROW_BUFFER_LENGTH; ++j) {
-                row_buffer[j] = uartDumpModel->pixels[((i - 1) * ROW_BUFFER_LENGTH) + j];
+                row_buffer[j] =
+                    cameraSuiteViewCameraModel->pixels[((i - 1) * ROW_BUFFER_LENGTH) + j];
             }
             storage_file_write(file, row_buffer, ROW_BUFFER_LENGTH);
         }
@@ -226,21 +285,6 @@ static void save_image_to_flipper_sd_card(void* model) {
 
     // Free up memory.
     storage_file_free(file);
-}
-
-static void
-    camera_suite_view_camera_model_init(UartDumpModel* const model, CameraSuite* instance_context) {
-    furi_assert(model);
-    furi_assert(instance_context);
-
-    model->is_dithering_enabled = true;
-    model->is_inverted = false;
-    uint32_t orientation = instance_context->orientation;
-    model->orientation = orientation;
-
-    for(size_t i = 0; i < FRAME_BUFFER_LENGTH; i++) {
-        model->pixels[i] = 0;
-    }
 }
 
 static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
@@ -254,9 +298,10 @@ static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
         default: // Stop all sounds, reset the LED.
             with_view_model(
                 instance->view,
-                UartDumpModel * model,
+                CameraSuiteViewCameraModel * model,
                 {
                     UNUSED(model);
+                    // Stop all sounds, reset the LED.
                     camera_suite_play_bad_bump(instance->context);
                     camera_suite_stop_all_sound(instance->context);
                     camera_suite_led_set_rgb(instance->context, 0, 0, 0);
@@ -269,12 +314,12 @@ static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
         case InputKeyBack: {
             with_view_model(
                 instance->view,
-                UartDumpModel * model,
+                CameraSuiteViewCameraModel * model,
                 {
                     UNUSED(model);
 
                     // Stop camera stream.
-                    furi_hal_serial_tx(instance->serial_handle, (uint8_t[]){'s'}, 1);
+                    furi_hal_serial_tx(instance->camera_serial_handle, (uint8_t[]){'s'}, 1);
                     furi_delay_ms(50);
 
                     // Go back to the main menu.
@@ -286,7 +331,7 @@ static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
         case InputKeyLeft: {
             with_view_model(
                 instance->view,
-                UartDumpModel * model,
+                CameraSuiteViewCameraModel * model,
                 {
                     // Play sound.
                     camera_suite_play_happy_bump(instance->context);
@@ -295,13 +340,13 @@ static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
 
                     if(model->is_inverted) {
                         // Camera: Set invert to false on the ESP32-CAM.
-                        furi_hal_serial_tx(instance->serial_handle, (uint8_t[]){'i'}, 1);
+                        furi_hal_serial_tx(instance->camera_serial_handle, (uint8_t[]){'i'}, 1);
                         furi_delay_ms(50);
 
                         model->is_inverted = false;
                     } else {
                         // Camera: Set invert to true on the ESP32-CAM.
-                        furi_hal_serial_tx(instance->serial_handle, (uint8_t[]){'I'}, 1);
+                        furi_hal_serial_tx(instance->camera_serial_handle, (uint8_t[]){'I'}, 1);
                         furi_delay_ms(50);
 
                         model->is_inverted = true;
@@ -315,7 +360,7 @@ static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
         case InputKeyRight: {
             with_view_model(
                 instance->view,
-                UartDumpModel * model,
+                CameraSuiteViewCameraModel * model,
                 {
                     // Play sound.
                     camera_suite_play_happy_bump(instance->context);
@@ -324,13 +369,13 @@ static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
 
                     if(model->is_dithering_enabled) {
                         // Camera: Disable dithering.
-                        furi_hal_serial_tx(instance->serial_handle, (uint8_t[]){'d'}, 1);
+                        furi_hal_serial_tx(instance->camera_serial_handle, (uint8_t[]){'d'}, 1);
                         furi_delay_ms(50);
 
                         model->is_dithering_enabled = false;
                     } else {
                         // Camera: Enable dithering.
-                        furi_hal_serial_tx(instance->serial_handle, (uint8_t[]){'D'}, 1);
+                        furi_hal_serial_tx(instance->camera_serial_handle, (uint8_t[]){'D'}, 1);
                         furi_delay_ms(50);
 
                         model->is_dithering_enabled = true;
@@ -344,7 +389,7 @@ static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
         case InputKeyUp: {
             with_view_model(
                 instance->view,
-                UartDumpModel * model,
+                CameraSuiteViewCameraModel * model,
                 {
                     UNUSED(model);
 
@@ -354,7 +399,7 @@ static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
                     camera_suite_led_set_rgb(instance->context, 0, 0, 255);
 
                     // Camera: Increase contrast.
-                    furi_hal_serial_tx(instance->serial_handle, (uint8_t[]){'C'}, 1);
+                    furi_hal_serial_tx(instance->camera_serial_handle, (uint8_t[]){'C'}, 1);
                     furi_delay_ms(50);
 
                     instance->callback(CameraSuiteCustomEventSceneCameraUp, instance->context);
@@ -365,7 +410,7 @@ static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
         case InputKeyDown: {
             with_view_model(
                 instance->view,
-                UartDumpModel * model,
+                CameraSuiteViewCameraModel * model,
                 {
                     UNUSED(model);
 
@@ -375,7 +420,7 @@ static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
                     camera_suite_led_set_rgb(instance->context, 0, 0, 255);
 
                     // Camera: Reduce contrast.
-                    furi_hal_serial_tx(instance->serial_handle, (uint8_t[]){'c'}, 1);
+                    furi_hal_serial_tx(instance->camera_serial_handle, (uint8_t[]){'c'}, 1);
                     furi_delay_ms(50);
 
                     instance->callback(CameraSuiteCustomEventSceneCameraDown, instance->context);
@@ -386,7 +431,7 @@ static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
         case InputKeyOk: {
             with_view_model(
                 instance->view,
-                UartDumpModel * model,
+                CameraSuiteViewCameraModel * model,
                 {
                     // Play sound.
                     camera_suite_play_long_bump(instance->context);
@@ -394,10 +439,10 @@ static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
                     camera_suite_led_set_rgb(instance->context, 0, 0, 255);
 
                     // @todo - Save picture directly to ESP32-CAM.
-                    // furi_hal_serial_tx(instance->serial_handle, (uint8_t[]){'P'}, 1);
+                    // furi_hal_serial_tx(instance->camera_serial_handle, (uint8_t[]){'P'}, 1);
 
                     // Save currently displayed image to the Flipper Zero SD card.
-                    save_image_to_flipper_sd_card(model);
+                    camera_suite_view_camera_save_image_to_flipper_sd_card(model);
 
                     instance->callback(CameraSuiteCustomEventSceneCameraOk, instance->context);
                 },
@@ -414,47 +459,10 @@ static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
     return false;
 }
 
-static void camera_suite_view_camera_exit(void* context) {
-    furi_assert(context);
-}
-
-static void camera_suite_view_camera_enter(void* context) {
-    furi_assert(context);
-
-    // Get the camera suite instance context.
-    CameraSuiteViewCamera* instance = (CameraSuiteViewCamera*)context;
-
-    // Get the camera suite instance context.
-    CameraSuite* instance_context = instance->context;
-
-    // Start camera stream.
-    furi_hal_serial_tx(instance->serial_handle, (uint8_t[]){'S'}, 1);
-    furi_delay_ms(50);
-
-    // Get/set dither type.
-    uint8_t dither_type = instance_context->dither;
-    furi_hal_serial_tx(instance->serial_handle, &dither_type, 1);
-    furi_delay_ms(50);
-
-    // Make sure the camera is not inverted.
-    furi_hal_serial_tx(instance->serial_handle, (uint8_t[]){'i'}, 1);
-    furi_delay_ms(50);
-
-    // Toggle flash on or off based on the current state. If the user has this
-    // on the flash will stay on the entire time the user is in the camera view.
-    uint8_t flash_state = instance_context->flash ? 'F' : 'f';
-    furi_hal_serial_tx(instance->serial_handle, &flash_state, 1);
-    furi_delay_ms(50);
-
-    with_view_model(
-        instance->view,
-        UartDumpModel * model,
-        { camera_suite_view_camera_model_init(model, instance_context); },
-        true);
-}
-
-static void
-    camera_on_irq_cb(FuriHalSerialHandle* handle, FuriHalSerialRxEvent event, void* context) {
+static void camera_suite_view_camera_on_irq_cb(
+    FuriHalSerialHandle* handle,
+    FuriHalSerialRxEvent event,
+    void* context) {
     furi_assert(handle);
     furi_assert(context);
 
@@ -468,7 +476,9 @@ static void
     }
 }
 
-static void process_ringbuffer(UartDumpModel* model, uint8_t const byte) {
+static void camera_suite_view_camera_process_ringbuffer(
+    CameraSuiteViewCameraModel* model,
+    uint8_t const byte) {
     furi_assert(model);
     furi_assert(byte);
 
@@ -516,7 +526,7 @@ static void process_ringbuffer(UartDumpModel* model, uint8_t const byte) {
     }
 }
 
-static int32_t camera_suite_camera_worker(void* context) {
+static int32_t camera_suite_view_camera_worker(void* context) {
     furi_assert(context);
 
     CameraSuiteViewCamera* instance = context;
@@ -546,11 +556,11 @@ static int32_t camera_suite_camera_worker(void* context) {
                 if(length > 0) {
                     with_view_model(
                         instance->view,
-                        UartDumpModel * model,
+                        CameraSuiteViewCameraModel * model,
                         {
                             // Process the data.
                             for(size_t i = 0; i < length; i++) {
-                                process_ringbuffer(model, data[i]);
+                                camera_suite_view_camera_process_ringbuffer(model, data[i]);
                             }
                         },
                         false);
@@ -558,12 +568,14 @@ static int32_t camera_suite_camera_worker(void* context) {
             } while(length > 0);
 
             with_view_model(
-                instance->view, UartDumpModel * model, { UNUSED(model); }, true);
+                instance->view, CameraSuiteViewCameraModel * model, { UNUSED(model); }, true);
         }
     }
 
     return 0;
 }
+
+// ------------------------------------------------------------ //
 
 CameraSuiteViewCamera* camera_suite_view_camera_alloc() {
     // Allocate memory for the instance
@@ -576,9 +588,9 @@ CameraSuiteViewCamera* camera_suite_view_camera_alloc() {
     instance->camera_rx_stream = furi_stream_buffer_alloc(2048, 1);
 
     // Allocate model
-    view_allocate_model(instance->view, ViewModelTypeLocking, sizeof(UartDumpModel));
+    view_allocate_model(instance->view, ViewModelTypeLocking, sizeof(CameraSuiteViewCameraModel));
 
-    // Set context for the view
+    // Set context for the view (furi_assert crashes in events without this)
     view_set_context(instance->view, instance);
 
     // Set draw callback
@@ -595,19 +607,35 @@ CameraSuiteViewCamera* camera_suite_view_camera_alloc() {
 
     // Allocate a thread for this camera to run on.
     FuriThread* thread = furi_thread_alloc_ex(
-        "Camera_Suite_Camera_Rx_Thread", 2048, camera_suite_camera_worker, instance);
+        "Camera_Suite_Camera_Rx_Thread", 2048, camera_suite_view_camera_worker, instance);
     instance->camera_worker_thread = thread;
     furi_thread_start(instance->camera_worker_thread);
 
     // Allocate the serial handle for the camera.
-    instance->serial_handle = furi_hal_serial_control_acquire(UART_CH);
-    furi_check(instance->serial_handle);
-    furi_hal_serial_init(instance->serial_handle, 230400);
+    instance->camera_serial_handle = furi_hal_serial_control_acquire(UART_CH);
+    furi_assert(instance->camera_serial_handle);
+    furi_hal_serial_init(instance->camera_serial_handle, 230400);
 
     // Start the asynchronous receive.
-    furi_hal_serial_async_rx_start(instance->serial_handle, camera_on_irq_cb, instance, false);
+    furi_hal_serial_async_rx_start(
+        instance->camera_serial_handle, camera_suite_view_camera_on_irq_cb, instance, false);
+
+    // Power cycle the camera off to start the firmware fresh.
+    furi_hal_power_disable_external_3_3v();
+    furi_hal_power_disable_otg();
+
+    furi_delay_ms(100);
+
+    // Power cycle the camera on.
+    furi_hal_power_enable_external_3_3v();
+    furi_hal_power_enable_otg();
 
     return instance;
+}
+
+View* camera_suite_view_camera_get_view(CameraSuiteViewCamera* instance) {
+    furi_assert(instance);
+    return instance->view;
 }
 
 void camera_suite_view_camera_free(CameraSuiteViewCamera* instance) {
@@ -621,19 +649,20 @@ void camera_suite_view_camera_free(CameraSuiteViewCamera* instance) {
     // Free the allocated stream buffer.
     furi_stream_buffer_free(instance->camera_rx_stream);
 
+    furi_assert(instance->camera_serial_handle);
+
     // Deinitialize the serial handle and release the control.
-    furi_hal_serial_deinit(instance->serial_handle);
-    furi_hal_serial_control_release(instance->serial_handle);
+    furi_hal_serial_deinit(instance->camera_serial_handle);
+    furi_hal_serial_control_release(instance->camera_serial_handle);
+
+    instance->camera_serial_handle = NULL;
+    instance->camera_worker_thread = NULL;
+    instance->camera_rx_stream = NULL;
 
     with_view_model(
-        instance->view, UartDumpModel * model, { UNUSED(model); }, true);
+        instance->view, CameraSuiteViewCameraModel * model, { UNUSED(model); }, true);
     view_free(instance->view);
     free(instance);
-}
-
-View* camera_suite_view_camera_get_view(CameraSuiteViewCamera* instance) {
-    furi_assert(instance);
-    return instance->view;
 }
 
 void camera_suite_view_camera_set_callback(
