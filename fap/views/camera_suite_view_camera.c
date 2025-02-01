@@ -557,8 +557,7 @@ static int32_t camera_suite_camera_worker(void* context) {
                 }
             } while(length > 0);
 
-            with_view_model(
-                instance->view, UartDumpModel * model, { UNUSED(model); }, true);
+            with_view_model(instance->view, UartDumpModel * model, { UNUSED(model); }, true);
         }
     }
 
@@ -625,8 +624,7 @@ void camera_suite_view_camera_free(CameraSuiteViewCamera* instance) {
     furi_hal_serial_deinit(instance->serial_handle);
     furi_hal_serial_control_release(instance->serial_handle);
 
-    with_view_model(
-        instance->view, UartDumpModel * model, { UNUSED(model); }, true);
+    with_view_model(instance->view, UartDumpModel * model, { UNUSED(model); }, true);
     view_free(instance->view);
     free(instance);
 }
