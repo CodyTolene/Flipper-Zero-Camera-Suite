@@ -23,7 +23,7 @@ jobs:
           sdk-channel: dev
 
       - name: "Create FAP Download (dev)"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ github.event.repository.name }}-dev-${{ steps.build-app.outputs.suffix }}.zip
           path: ${{ steps.build-app.outputs.fap-artifacts }}
