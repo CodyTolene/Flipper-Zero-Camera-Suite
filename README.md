@@ -285,6 +285,7 @@ Thanks to all the people and projects that made this possible! I hope you enjoy 
 | Type                                                           | Info                                                                               |
 | :------------------------------------------------------------- | :--------------------------------------------------------------------------------- |
 | <img width="48" src=".github/ng-icons/email.svg" />            | webmaster@codytolene.com                                                           |
+| <img width="48" src=".github/simple-icons/github.svg" />       | https://github.com/sponsors/CodyTolene                                             |
 | <img width="48" src=".github/simple-icons/buymeacoffee.svg" /> | https://www.buymeacoffee.com/codytolene                                            |
 | <img width="48" src=".github/images/bitcoin-btc-logo.svg" />   | [bc1qfx3lvspkj0q077u3gnrnxqkqwyvcku2nml86wmudy7yf2u8edmqq0a5vnt][btc-address-link] |
 
