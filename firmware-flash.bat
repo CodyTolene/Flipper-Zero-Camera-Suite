@@ -12,10 +12,8 @@ set FIRMWARE_SRC=%CD%\firmware\firmware.ino
 set SELECTED_BOARD=%DEFAULT_BOARD_FQBN%
 
 chcp 65001 > nul
-echo ┏┓   ┓    ┏┳┓  ┓
-echo ┃ ┏┓┏┫┓┏   ┃ ┏┓┃┏┓┏┓┏┓
-echo ┗┛┗┛┗┻┗┫   ┻ ┗┛┗┗ ┛┗┗
-echo        ┛  https://github.com/CodyTolene
+echo Cody Tolene
+echo https://github.com/CodyTolene
 echo.
 echo Flipper Zero - ESP32-CAM Firmware Flasher - Windows 10+
 echo https://github.com/CodyTolene/Flipper-Zero-Camera-Suite
