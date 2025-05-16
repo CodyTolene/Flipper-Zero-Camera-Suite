@@ -23,33 +23,33 @@ static void draw_image(Canvas* canvas, uint8_t* cam_buf, uint8_t orientation) {
         for(size_t x = 0; x < FRAME_WIDTH; x++) {
             uint8_t x_cam;
             uint8_t y_cam;
-        
+
             switch(orientation) {
-                default:
-                case 0: { // Camera rotated 0 degrees (right side up, default)
-                    x_cam = x;
-                    y_cam = y + 32;
-                    break;
-                }
-                case 1: { // Camera rotated 90 degrees
-                    x_cam = FRAME_WIDTH - y - 32 - 1;
-                    y_cam = x;
-                    break;
-                }
-                case 2: { // Camera rotated 180 degrees (upside down)
-                    x_cam = FRAME_WIDTH - x - 1;
-                    y_cam = FRAME_WIDTH - y - 32 - 1;
-                    break;
-                }
-                case 3: { // Camera rotated 270 degrees
-                    x_cam = y + 32;
-                    y_cam = FRAME_WIDTH - x - 1;
-                    break;
-                }
+            default:
+            case 0: { // Camera rotated 0 degrees (right side up, default)
+                x_cam = x;
+                y_cam = y + 32;
+                break;
+            }
+            case 1: { // Camera rotated 90 degrees
+                x_cam = FRAME_WIDTH - y - 32 - 1;
+                y_cam = x;
+                break;
+            }
+            case 2: { // Camera rotated 180 degrees (upside down)
+                x_cam = FRAME_WIDTH - x - 1;
+                y_cam = FRAME_WIDTH - y - 32 - 1;
+                break;
+            }
+            case 3: { // Camera rotated 270 degrees
+                x_cam = y + 32;
+                y_cam = FRAME_WIDTH - x - 1;
+                break;
+            }
             }
 
             uint8_t pixel = get_pixel(cam_buf, x_cam, y_cam);
-            if (pixel) {
+            if(pixel) {
                 canvas_draw_dot(canvas, x, FRAME_HEIGHT - y - 1);
             }
         }
